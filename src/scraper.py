@@ -1,7 +1,8 @@
 import json
+import time
+import schedule
 
 from typing import Any
-from time import perf_counter
 
 from bs4 import BeautifulSoup, Tag
 from requests import Session, Response
@@ -11,13 +12,16 @@ from constants import (
     BASE_URL,
     FILE_PATH,
     RATING_MAP,
+    RESPONSE_TIMEOUT,
     SAVE_DIR_PATH,
     START_CATALOGUE_PAGE_URL,
     LINK_NOT_FOUND,
     EMPTY_DATA,
     CLEAN_CURRENCY,
+    TASK_START_TIME,
     UNKNOWN_RATING,
     UNKNOWN_RATING_VALUE,
+    WAITING_TIME,
 )
 
 
@@ -32,11 +36,11 @@ class Parcer:
 
     def _get_response_as_text(self, session: Session, url: str) -> Response:
         try:
-            response = session.get(url)
+            response = session.get(url, timeout=RESPONSE_TIMEOUT)
             response.raise_for_status()
             return response.text
         except RequestException as error:
-            raise RequestException(f"Ошибка при попытке выполнить запрос: {error}")
+            raise RequestException(f"Ошибка при попытке выполнить запрос к {url}: {error}")
 
     def _get_soup(self, text: str, pars_lib: str = "html.parser") -> BeautifulSoup:
         return BeautifulSoup(text, pars_lib)
@@ -162,19 +166,24 @@ class Parcer:
 
         return scraped_books
 
+    def create_dayly_task(self, start_time: str = TASK_START_TIME) -> schedule.Job:
+        schedule.every().day.at(start_time).do(self.scrape_books, is_save=True)
+
 
 if __name__ == "__main__":
     book_parcer = Parcer()
+    book_parcer.create_dayly_task()
 
     try:
-        start_time = perf_counter()
-        books = book_parcer.scrape_books(is_save=True)
-        end_time = perf_counter()
-        print(f"Собрано книг: {len(books)}")
-        print(f"Время выполнения операции: {end_time - start_time:.2f} секунд")
+        while True:
+            schedule.run_pending()
+            next_run = schedule.idle_seconds()
+            time.sleep(min(next_run, WAITING_TIME))
     except Exception as error:
         print(f"Возникла ошибка при парсинге данных: {error}")
-
+    except KeyboardInterrupt:
+        print("Ручной выход из программы")
+ 
 
 # def get_book_data(book_url: str) -> dict:
 #     """
