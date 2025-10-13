@@ -8,8 +8,9 @@ SAVE_DIR_PATH = BASE_DIR / "artifacts"
 FILE_PATH = SAVE_DIR_PATH / BOOKS_DATA_FILENAME
 
 BASE_URL: str = "https://books.toscrape.com/catalogue/"
-START_CATALOGUE_PAGE_URL: str = BASE_URL + "page-50.html"
 
+# TODO: вернуть номер страницы на 1
+START_CATALOGUE_PAGE_URL: str = BASE_URL + "page-50.html"
 
 CLEAN_CURRENCY: str = "Â"
 
@@ -26,3 +27,8 @@ RATING_MAP: dict[str, str] = {
     "Five": "5",
     UNKNOWN_RATING: UNKNOWN_RATING_VALUE,
 }
+
+# TODO: вернуть время на 19:00
+TASK_START_TIME:str = "16:15"
+WAITING_TIME: int = 10
+RESPONSE_TIMEOUT: int = 10
