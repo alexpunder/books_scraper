@@ -5,7 +5,7 @@ import schedule
 from typing import Any
 
 from bs4 import BeautifulSoup, Tag
-from requests import Session, Response
+from requests import Session
 from requests.exceptions import RequestException
 
 from constants import (
@@ -25,7 +25,7 @@ from constants import (
 )
 
 
-class Parcer:
+class Scraper:
     # TODO: написать docstring
 
     def __init__(self):
@@ -34,7 +34,7 @@ class Parcer:
     def _get_session(self, *args, **kwargs) -> Session:
         return Session(*args, **kwargs)
 
-    def _get_response_as_text(self, session: Session, url: str) -> Response:
+    def _get_response_as_text(self, session: Session, url: str) -> str:
         try:
             response = session.get(url, timeout=RESPONSE_TIMEOUT)
             response.raise_for_status()
@@ -179,8 +179,8 @@ class Parcer:
 
 
 if __name__ == "__main__":
-    book_parcer = Parcer()
-    book_parcer.create_dayly_task()
+    book_scraper = Scraper()
+    book_scraper.create_dayly_task()
 
     try:
         while True:
