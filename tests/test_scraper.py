@@ -49,6 +49,18 @@ class TestScraper:
         session: Session,
         example_book_full_html: str,
     ):
+        """Тестирует извлечение полных данных о книге с HTML-страницы.
+    
+        Проверяет корректность работы метода _get_book_data при парсинге
+        полноценной HTML-страницы книги. Тест использует мок для подмены
+        HTTP-запроса и проверяет что все компоненты данных извлекаются правильно.
+        
+        Проверяемые данные:
+        - Основная информация: название, цена, доступность, рейтинг, описание
+        - Таблица характеристик: UPC, тип продукта, цены с налогом и без, налог, отзывы
+        
+        Ожидаемые значения соответствуют данным в фикстуре example_book_full_html.
+        """
         with patch.object(
             scraper,
             "_get_response_as_text",
@@ -80,6 +92,13 @@ class TestScraper:
         page3_html_without_next: str,
         books_titles: list[dict[str, str]],
     ):
+        """Тестирует полный цикл парсинга с многостраничным каталогом.
+    
+        Проверяет:
+        - Корректность обхода страниц пагинации
+        - Обработку всех книг со всех страниц
+        - Формирование итогового списка данных
+        """
         with (
             patch.object(scraper, "_get_response_as_text") as mock_get_text,
             patch.object(scraper, "_get_book_data") as mock_get_book_data,
