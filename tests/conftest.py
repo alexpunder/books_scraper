@@ -9,6 +9,8 @@ EXAMPLE_BOOK_PAGE: str = (
     "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"
 )
 BAD_URL_MIXIN: str = "/something-bad"
+TOTAL_BOOKS_SCRAPED: int = 9
+TOTAL_BOOKS_PAGES: int = 3
 
 
 @pytest.fixture
@@ -104,12 +106,66 @@ def info_table_html() -> str:
 
 
 @pytest.fixture
+def page1_html_with_next2():
+    return """
+    <html>
+      <section>
+        <ol class="row">
+          <li><div class="image_container"><a href="/book1.html"></a></div></li>
+          <li><div class="image_container"><a href="/book2.html"></a></div></li>
+          <li><div class="image_container"><a href="/book3.html"></a></div></li>
+        </ol>
+      </section>
+      <li class="next"><a href="/page2.html">next</a></li>
+    </html>
+    """
+
+
+@pytest.fixture
+def page2_html_with_next3():
+    return """
+    <html>
+      <section>
+        <ol class="row">
+          <li><div class="image_container"><a href="/book4.html"></a></div></li>
+          <li><div class="image_container"><a href="/book5.html"></a></div></li>
+          <li><div class="image_container"><a href="/book6.html"></a></div></li>
+        </ol>
+      </section>
+      <li class="next"><a href="/page3.html">next</a></li>
+    </html>
+    """
+
+
+@pytest.fixture
+def page3_html_without_next():
+    return """
+    <html>
+      <section>
+        <ol class="row">
+          <li><div class="image_container"><a href="/book7.html"></a></div></li>
+          <li><div class="image_container"><a href="/book8.html"></a></div></li>
+          <li><div class="image_container"><a href="/book9.html"></a></div></li>
+        </ol>
+      </section>
+    </html>
+    """
+
+
+@pytest.fixture
+def books_titles() -> list[dict[str, str]]:
+    return [{"Title": f"Book {i}"} for i in range(1, TOTAL_BOOKS_SCRAPED + 1)]
+
+
+@pytest.fixture
 def main_soup(scraper: Scraper, book_main_data_html: str) -> BeautifulSoup:
     return scraper._get_soup(book_main_data_html)
 
 
 @pytest.fixture
-def empty_title_main_soup(scraper: Scraper, empty_title_book_main_data_html: str) -> BeautifulSoup:
+def empty_title_main_soup(
+    scraper: Scraper, empty_title_book_main_data_html: str
+) -> BeautifulSoup:
     return scraper._get_soup(empty_title_book_main_data_html)
 
 

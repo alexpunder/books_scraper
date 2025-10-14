@@ -6,6 +6,7 @@ from requests import RequestException, Session
 
 from src.constants import EMPTY_DATA
 from src.scraper import Scraper
+from tests.conftest import TOTAL_BOOKS_PAGES, TOTAL_BOOKS_SCRAPED
 
 
 class TestScraper:
@@ -70,3 +71,36 @@ class TestScraper:
             assert result["Price (incl. tax)"] == "£51.77"
             assert result["Tax"] == "£0.00"
             assert result["Number of reviews"] == "0"
+
+    def test_get_all_books_data_success(
+        self,
+        scraper: Scraper,
+        page1_html_with_next2: str,
+        page2_html_with_next3: str,
+        page3_html_without_next: str,
+        books_titles: list[dict[str, str]],
+    ):
+        with (
+            patch.object(scraper, "_get_response_as_text") as mock_get_text,
+            patch.object(scraper, "_get_book_data") as mock_get_book_data,
+        ):
+            mock_get_text.side_effect = [
+                page1_html_with_next2,
+                page2_html_with_next3,
+                page3_html_without_next,
+            ]
+
+            mock_get_book_data.side_effect = books_titles
+
+            books = scraper.scrape_books()
+
+            assert isinstance(books, list)
+            assert all(isinstance(book, dict) for book in books)
+
+            assert len(books) == TOTAL_BOOKS_SCRAPED
+
+            assert books[0]["Title"] == "Book 1"
+            assert books[4]["Title"] == "Book 5"
+
+            assert mock_get_text.call_count == TOTAL_BOOKS_PAGES
+            assert mock_get_book_data.call_count == TOTAL_BOOKS_SCRAPED
