@@ -20,7 +20,7 @@ def scraper() -> Scraper:
 
 @pytest.fixture
 def session(scraper: Scraper) -> Session:
-    return scraper._get_session()
+    return scraper.session
 
 
 @pytest.fixture
