@@ -50,15 +50,15 @@ class TestScraper:
         example_book_full_html: str,
     ):
         """Тестирует извлечение полных данных о книге с HTML-страницы.
-    
+
         Проверяет корректность работы метода _get_book_data при парсинге
         полноценной HTML-страницы книги. Тест использует мок для подмены
         HTTP-запроса и проверяет что все компоненты данных извлекаются правильно.
-        
+
         Проверяемые данные:
         - Основная информация: название, цена, доступность, рейтинг, описание
         - Таблица характеристик: UPC, тип продукта, цены с налогом и без, налог, отзывы
-        
+
         Ожидаемые значения соответствуют данным в фикстуре example_book_full_html.
         """
         with patch.object(
@@ -67,6 +67,8 @@ class TestScraper:
             return_value=example_book_full_html,
         ):
             result = scraper._get_book_data(session, self.ANY_TEST_URL)
+
+            assert isinstance(result, dict)
 
             assert result["Title"] == "A Light in the Attic"
             assert result["Price"] == "£51.77"
@@ -77,12 +79,14 @@ class TestScraper:
                 == "It's hard to imagine a world without A Light in the Attic."
             )
 
-            assert result["UPC"] == "a897fe39b1053632"
-            assert result["Product Type"] == "Books"
-            assert result["Price (excl. tax)"] == "£51.77"
-            assert result["Price (incl. tax)"] == "£51.77"
-            assert result["Tax"] == "£0.00"
-            assert result["Number of reviews"] == "0"
+            assert isinstance(result["Info_table"], dict)
+
+            assert result["Info_table"]["UPC"] == "a897fe39b1053632"
+            assert result["Info_table"]["Product Type"] == "Books"
+            assert result["Info_table"]["Price (excl. tax)"] == "£51.77"
+            assert result["Info_table"]["Price (incl. tax)"] == "£51.77"
+            assert result["Info_table"]["Tax"] == "£0.00"
+            assert result["Info_table"]["Number of reviews"] == "0"
 
     def test_get_all_books_data_success(
         self,
@@ -93,7 +97,7 @@ class TestScraper:
         books_titles: list[dict[str, str]],
     ):
         """Тестирует полный цикл парсинга с многостраничным каталогом.
-    
+
         Проверяет:
         - Корректность обхода страниц пагинации
         - Обработку всех книг со всех страниц

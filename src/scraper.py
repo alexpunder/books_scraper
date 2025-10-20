@@ -1,7 +1,9 @@
 import json
+import logging
 import time
 import schedule
 
+from functools import wraps
 from typing import Any
 
 from bs4 import BeautifulSoup, Tag
@@ -10,6 +12,7 @@ from requests.exceptions import RequestException
 
 from constants import (
     BASE_URL,
+    DELAY,
     FILE_PATH,
     RATING_MAP,
     RESPONSE_TIMEOUT,
@@ -21,8 +24,36 @@ from constants import (
     TASK_START_TIME,
     UNKNOWN_RATING,
     UNKNOWN_RATING_VALUE,
-    DELAY,
 )
+
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+
+def timer(func):
+    call_count = 0
+    total_time = 0.0
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        nonlocal call_count, total_time
+        call_count += 1
+        start_time_inner = time.perf_counter()
+
+        result = func(*args, **kwargs)
+
+        end_time_inner = time.perf_counter()
+        diff_time_inner = end_time_inner - start_time_inner
+        total_time += diff_time_inner
+        logging.info(
+            f"Время выполнения функции {func.__name__}: {diff_time_inner:.2f}. "
+            f"Номер операции: #{call_count}. Накопленное время: {total_time:.2f}."
+        )
+        return result
+
+    return wrapper
 
 
 class Scraper:
@@ -32,13 +63,20 @@ class Scraper:
     извлечения детальной информации о каждой книге и сохранения результатов.
     """
 
-    def _get_session(self, *args, **kwargs) -> Session:
+    def __init__(self):
+        self._session = None
+        self._connection_conf = {}
+
+    @property
+    def session(self) -> Session:
         """Создает и возвращает новую сессию для HTTP-запросов.
 
         Returns:
             Session: Объект сессии для выполнения HTTP-запросов.
         """
-        return Session(*args, **kwargs)
+        if not self._session:
+            self._session = Session(**self._connection_conf)
+        return self._session
 
     def _get_response_as_text(self, session: Session, url: str) -> str:
         """Выполняет HTTP-запрос и возвращает текст ответа.
@@ -71,7 +109,7 @@ class Scraper:
         Args:
             text (str): HTML-текст для парсинга.
             pars_lib (str, optional): Парсер для BeautifulSoup.
-                Defaults to "html.parser".
+                Значение по умолчанию - "html.parser".
 
         Returns:
             BeautifulSoup: Объект для парсинга HTML.
@@ -230,6 +268,7 @@ class Scraper:
         with open(FILE_PATH, mode="w", encoding="utf-8") as write:
             json.dump(result_data, write, ensure_ascii=False, indent=2)
 
+    @timer
     def _get_book_data(
         self, session: Session, book_url: str
     ) -> dict[str, Any]:
@@ -253,17 +292,16 @@ class Scraper:
         if not main_data:
             raise ValueError("Не найдена основная информация о книге")
 
-        info_table = self._get_info_table(soup)
-
         return {
             "Title": self._get_title(main_data),
             "Price": self._get_price(main_data),
             "Available": self._get_available(main_data),
             "Rating": self._get_rating(main_data),
             "Description": self._get_description(soup),
-            **info_table,
+            "Info_table": self._get_info_table(soup),
         }
 
+    @timer
     def scrape_books(self, is_save: bool = False) -> list[dict[str, Any]]:
         """Парсит данные о всех книгах из каталога.
 
@@ -271,12 +309,14 @@ class Scraper:
         и возвращает список с данными. Может сохранять результаты в файл.
 
         Args:
-            is_save (bool, optional): Сохранять ли данные в файл. Defaults to False.
+            is_save (bool, optional): Сохранять ли данные в файл.
+                Значение по умолчанию - False.
 
         Returns:
             list[dict[str, Any]]: Список словарей с данными о книгах.
         """
-        with self._get_session() as session:
+        logging.info("Начало процесса парсинга.")
+        with self.session as session:
             text = self._get_response_as_text(
                 session, START_CATALOGUE_PAGE_URL
             )
@@ -301,6 +341,8 @@ class Scraper:
         if is_save:
             self._save_books_data_as_file(scraped_books)
 
+        logging.info("Парсинг сайта завершен.")
+        logging.info(f"Обработано страниц с книгами: #{len(scraped_books)}.")
         return scraped_books
 
     def create_dayly_task(
@@ -310,7 +352,7 @@ class Scraper:
 
         Args:
             start_time (str, optional): Время запуска в формате HH:MM.
-                Defaults to TASK_START_TIME.
+                Значение по умолчанию - TASK_START_TIME.
 
         Returns:
             schedule.Job: Объект запланированной задачи.
@@ -320,6 +362,8 @@ class Scraper:
 
 if __name__ == "__main__":
     book_scraper = Scraper()
+
+    # book_scraper.scrape_books(is_save=True)
     book_scraper.create_dayly_task()
 
     try:
@@ -330,4 +374,4 @@ if __name__ == "__main__":
     except Exception as error:
         print(f"Возникла ошибка при парсинге данных: {error}")
     except KeyboardInterrupt:
-        print("Ручной выход из программы")
+        print("Ручная остановка работы программы")
