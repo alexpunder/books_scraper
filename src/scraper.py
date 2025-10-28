@@ -1,59 +1,17 @@
 import json
-import logging
 import time
-import schedule
-
-from functools import wraps
 from typing import Any
 
+import schedule
 from bs4 import BeautifulSoup, Tag
 from requests import Session
 from requests.exceptions import RequestException
 
-from constants import (
-    BASE_URL,
-    DELAY,
-    FILE_PATH,
-    RATING_MAP,
-    RESPONSE_TIMEOUT,
-    SAVE_DIR_PATH,
-    START_CATALOGUE_PAGE_URL,
-    LINK_NOT_FOUND,
-    EMPTY_DATA,
-    CLEAN_CURRENCY,
-    TASK_START_TIME,
-    UNKNOWN_RATING,
-    UNKNOWN_RATING_VALUE,
-)
-
-
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
-
-def timer(func):
-    call_count = 0
-    total_time = 0.0
-
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        nonlocal call_count, total_time
-        call_count += 1
-        start_time_inner = time.perf_counter()
-
-        result = func(*args, **kwargs)
-
-        end_time_inner = time.perf_counter()
-        diff_time_inner = end_time_inner - start_time_inner
-        total_time += diff_time_inner
-        logging.info(
-            f"Время выполнения функции {func.__name__}: {diff_time_inner:.2f}. "
-            f"Номер операции: #{call_count}. Накопленное время: {total_time:.2f}."
-        )
-        return result
-
-    return wrapper
+from adapters import HttpClientManager, scraper_http_manager
+from config import ScraperConfig, scraper_conf
+from constants import DELAY
+from logger import logger
+from utils import timer
 
 
 class Scraper:
@@ -63,20 +21,13 @@ class Scraper:
     извлечения детальной информации о каждой книге и сохранения результатов.
     """
 
-    def __init__(self):
-        self._session = None
-        self._connection_conf = {}
-
-    @property
-    def session(self) -> Session:
-        """Создает и возвращает новую сессию для HTTP-запросов.
-
-        Returns:
-            Session: Объект сессии для выполнения HTTP-запросов.
-        """
-        if not self._session:
-            self._session = Session(**self._connection_conf)
-        return self._session
+    def __init__(
+        self,
+        http_manager: HttpClientManager,
+        scraper_config: ScraperConfig,
+    ):
+        self.http_manager: HttpClientManager = http_manager
+        self.config: ScraperConfig = scraper_config
 
     def _get_response_as_text(self, session: Session, url: str) -> str:
         """Выполняет HTTP-запрос и возвращает текст ответа.
@@ -93,7 +44,10 @@ class Scraper:
             str: Текст HTML-страницы.
         """
         try:
-            response = session.get(url, timeout=RESPONSE_TIMEOUT)
+            response = session.get(
+                url,
+                timeout=self.config.response_timeout,
+            )
             response.raise_for_status()
             return response.text
         except RequestException as error:
@@ -126,7 +80,7 @@ class Scraper:
             str | None: URL следующей страницы или None, если это последняя страница.
         """
         next = soup.select_one("li.next a")
-        return next.get("href", LINK_NOT_FOUND) if next else None
+        return next.get("href", self.config.link_not_found) if next else None
 
     def _get_books_redirections(self, soup: BeautifulSoup) -> list[str]:
         """Извлекает список URL книг со страницы каталога.
@@ -138,7 +92,7 @@ class Scraper:
             list[str]: Список относительных URL страниц книг.
         """
         return [
-            a.get("href", LINK_NOT_FOUND)
+            a.get("href", self.config.link_not_found)
             for a in soup.select("section ol.row div.image_container a")
         ]
 
@@ -152,7 +106,7 @@ class Scraper:
             str: Название книги или EMPTY_DATA, если не найдено.
         """
         title = main_data.find("h1")
-        return title.get_text(strip=True) if title else EMPTY_DATA
+        return title.get_text(strip=True) if title else self.config.empty_data
 
     def _get_price(self, main_data: Tag) -> str:
         """Извлекает цену книги из основного блока информации.
@@ -164,7 +118,11 @@ class Scraper:
             str: Цена книги без символа валюты или EMPTY_DATA, если не найдено.
         """
         price = main_data.find(class_="price_color")
-        return price.text.replace(CLEAN_CURRENCY, "") if price else EMPTY_DATA
+        return (
+            price.text.replace(self.config.clean_currency, "")
+            if price
+            else self.config.empty_data
+        )
 
     def _formatter_avialable(self, available_data: str):
         """Извлекает числовое значение доступности из строки.
@@ -191,7 +149,7 @@ class Scraper:
         if available:
             return self._formatter_avialable(available.get_text(strip=True))
 
-        return EMPTY_DATA
+        return self.config.empty_data
 
     def _get_rating(self, main_data: Tag) -> str:
         """Извлекает рейтинг книги из CSS-классов.
@@ -205,10 +163,12 @@ class Scraper:
         rating_class = main_data.find(class_="star-rating")
 
         if not rating_class:
-            return EMPTY_DATA
+            return self.config.empty_data
 
-        _, rating = rating_class.get("class", UNKNOWN_RATING)
-        return RATING_MAP.get(rating, UNKNOWN_RATING_VALUE)
+        _, rating = rating_class.get("class", self.config.unknown_rating)
+        return self.config.rating_map.get(
+            rating, self.config.unknown_rating_value
+        )
 
     def _get_description(self, soup: Tag) -> str:
         """Извлекает описание книги.
@@ -222,10 +182,14 @@ class Scraper:
         sub_header = soup.find(id="product_description")
 
         if not sub_header:
-            return EMPTY_DATA
+            return self.config.empty_data
 
         description = sub_header.find_next("p")
-        return description.get_text(strip=True) if description else EMPTY_DATA
+        return (
+            description.get_text(strip=True)
+            if description
+            else self.config.empty_data
+        )
 
     def _get_info_table(self, soup: Tag) -> dict[str, Any]:
         """Извлекает дополнительную информацию из таблицы характеристик.
@@ -248,7 +212,7 @@ class Scraper:
             value = row.select_one("td").get_text(strip=True)
 
             if "Price" in key or "Tax" in key:
-                value = value.replace(CLEAN_CURRENCY, "")
+                value = value.replace(self.config.clean_currency, "")
 
             if "Availability" in key:
                 continue
@@ -257,15 +221,14 @@ class Scraper:
 
         return info_table
 
-    @staticmethod
-    def _save_books_data_as_file(result_data: list[dict[str, Any]]):
+    def _save_books_data_as_file(self, result_data: list[dict[str, Any]]):
         """Сохраняет данные о книгах в JSON-файл.
 
         Args:
             result_data (list[dict[str, Any]]): Список словарей с данными о книгах.
         """
-        SAVE_DIR_PATH.mkdir(parents=True, exist_ok=True)
-        with open(FILE_PATH, mode="w", encoding="utf-8") as write:
+        self.config.save_dir_path.mkdir(parents=True, exist_ok=True)
+        with open(self.config.file_path, mode="w", encoding="utf-8") as write:
             json.dump(result_data, write, ensure_ascii=False, indent=2)
 
     @timer
@@ -315,10 +278,11 @@ class Scraper:
         Returns:
             list[dict[str, Any]]: Список словарей с данными о книгах.
         """
-        logging.info("Начало процесса парсинга.")
-        with self.session as session:
+        logger.info("Начало процесса парсинга.")
+        with self.http_manager.session as session:
             text = self._get_response_as_text(
-                session, START_CATALOGUE_PAGE_URL
+                session,
+                self.config.start_catalog_page,
             )
             soup = self._get_soup(text)
 
@@ -326,7 +290,7 @@ class Scraper:
             while True:
                 books_redirections = self._get_books_redirections(soup)
                 for book_redirect in books_redirections:
-                    book_url = BASE_URL + book_redirect
+                    book_url = self.config.base_url + book_redirect
                     scraped_book = self._get_book_data(session, book_url)
                     scraped_books.append(scraped_book)
 
@@ -334,19 +298,20 @@ class Scraper:
                 if not next_page:
                     break
 
-                next_page_url = BASE_URL + next_page
+                next_page_url = self.config.base_url + next_page
                 text = self._get_response_as_text(session, next_page_url)
                 soup = self._get_soup(text)
 
         if is_save:
             self._save_books_data_as_file(scraped_books)
 
-        logging.info("Парсинг сайта завершен.")
-        logging.info(f"Обработано страниц с книгами: #{len(scraped_books)}.")
+        logger.info("Парсинг сайта завершен.")
+        logger.info(f"Обработано страниц с книгами: #{len(scraped_books)}.")
         return scraped_books
 
     def create_dayly_task(
-        self, start_time: str = TASK_START_TIME
+        self,
+        start_time: str | None = None,
     ) -> schedule.Job:
         """Создает ежедневную задачу для автоматического парсинга.
 
@@ -357,19 +322,27 @@ class Scraper:
         Returns:
             schedule.Job: Объект запланированной задачи.
         """
+        if not start_time:
+            start_time = self.config.start_time
+
         schedule.every().day.at(start_time).do(self.scrape_books, is_save=True)
+        logger.info(f"Запланирован запус на {start_time}")
 
 
 if __name__ == "__main__":
-    book_scraper = Scraper()
+    book_scraper = Scraper(
+        http_manager=scraper_http_manager,
+        scraper_config=scraper_conf,
+    )
 
-    # book_scraper.scrape_books(is_save=True)
     book_scraper.create_dayly_task()
 
     try:
         while True:
+            logger.info("Отслеживаем начало времени запуска...")
             schedule.run_pending()
             next_run = schedule.idle_seconds()
+            logger.info(f"Следующий запуск через: {next_run:.2f} секунд")
             time.sleep(min(next_run, DELAY))
     except Exception as error:
         print(f"Возникла ошибка при парсинге данных: {error}")
