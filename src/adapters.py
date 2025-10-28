@@ -17,9 +17,9 @@ class HttpClientManager:
         _config (SessionConfig): Конфигурация параметров сессии
     """
 
-    def __init__(self, config: "SessionConfig") -> None:
-        self._session: "requests.Session" | None = None
-        self._config: "SessionConfig" = config
+    def __init__(self, config: SessionConfig) -> None:
+        self._session: requests.Session | None = None
+        self._config: SessionConfig = config
 
     @property
     def session(self) -> requests.Session:
@@ -62,4 +62,4 @@ class HttpClientManager:
         self.session.mount("https://", adapter)
 
 
-scraper_http_manager: "HttpClientManager" = HttpClientManager(session_conf)
+scraper_http_manager: HttpClientManager = HttpClientManager(session_conf)

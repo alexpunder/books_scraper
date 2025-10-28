@@ -1,21 +1,17 @@
 import json
 import time
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import schedule
 from bs4 import BeautifulSoup, Tag
 from requests import Session
 from requests.exceptions import RequestException
 
-from adapters import scraper_http_manager
-from config import scraper_conf
+from adapters import HttpClientManager, scraper_http_manager
+from config import ScraperConfig, scraper_conf
 from constants import DELAY
 from logger import logger
 from utils import timer
-
-if TYPE_CHECKING:
-    from adapters import HttpClientManager
-    from config import ScraperConfig
 
 
 class Scraper:
@@ -27,11 +23,11 @@ class Scraper:
 
     def __init__(
         self,
-        http_manager: "HttpClientManager",
-        scraper_config: "ScraperConfig",
+        http_manager: HttpClientManager,
+        scraper_config: ScraperConfig,
     ):
-        self.http_manager: "HttpClientManager" = http_manager
-        self.config: "ScraperConfig" = scraper_config
+        self.http_manager: HttpClientManager = http_manager
+        self.config: ScraperConfig = scraper_config
 
     def _get_response_as_text(self, session: Session, url: str) -> str:
         """Выполняет HTTP-запрос и возвращает текст ответа.
