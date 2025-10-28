@@ -18,9 +18,9 @@ _**Парсер книжного сайта "books.toscrape.com"**_
 ![BeautifulSoup](https://img.shields.io/badge/Beautiful_Soup-4.12.3-orange?style=flat&logo=beautifulsoup)
 ![Schedule 1.2.2](https://img.shields.io/badge/Schedule-Task%20Scheduling-blue?style=flat&logo=clockify)
 
-Парсинг: Использует библиотеку `Requests` для HTTP-запросов + `BeautifulSoup` для работы с HTML
-Планирование: `Schedule` для настройки периодического выполнения
-Тестирование: `Pytest` для тестирования
+- Парсинг: Использует библиотеку `Requests` для HTTP-запросов + `BeautifulSoup` для работы с HTML
+- Планирование: `Schedule` для настройки периодического выполнения
+- Тестирование: `Pytest` для тестирования
 
 ## Установка проекта.  
 
@@ -76,6 +76,7 @@ python -m pip install --upgrade pip
 ## Тестирование.
 
 Из корневой директории проекта выполните команду `pytest`. Каждый тест должен завершиться статусом `PASSED`
+
 
 
 
