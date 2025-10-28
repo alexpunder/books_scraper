@@ -1,7 +1,7 @@
 from unittest.mock import patch
-from bs4 import BeautifulSoup
-import pytest
 
+import pytest
+from bs4 import BeautifulSoup
 from requests import RequestException, Session
 
 from src.constants import EMPTY_DATA
@@ -10,16 +10,54 @@ from tests.conftest import TOTAL_BOOKS_PAGES, TOTAL_BOOKS_SCRAPED
 
 
 class TestScraper:
+    """
+    Набор тестов для проверки функциональности класса Scraper.
+
+    Тесты покрывают основные сценарии работы парсера:
+    - Корректные ответы и обработка ошибок HTTP-запросов
+    - Извлечение данных из HTML-страниц (название, цена, описание и т.д.)
+    - Обработка граничных случаев (отсутствие данных, ошибки 404)
+    - Многостраничный парсинг с пагинацией
+
+    Attributes:
+        ANY_TEST_URL: Базовый URL, используемый в тестовых запросах
+    """
+
     ANY_TEST_URL: str = "http://books.any-test-url.com"
 
     def test_example_book_page_correct_response(
         self, example_book_page_correct_request
     ):
+        """Тестирует корректный ответ от сервера для страницы книги.
+
+        Проверяет, что запрос возвращает данные в ожидаемом формате.
+
+        Args:
+            example_book_page_correct_request: Фикстура с корректным HTML-ответом
+
+        Asserts:
+            - Ответ является строкой (HTML-контентом)
+        """
         assert isinstance(example_book_page_correct_request, str)
 
     def test_example_book_page_not_found_response(
         self, scraper: Scraper, session: Session, not_found_url: str
     ):
+        """Тестирует обработку HTTP-ошибки 404 (страница не найдена).
+
+        Проверяет, что парсер корректно обрабатывает случай отсутствия страницы
+        и генерирует информативное исключение.
+
+        Args:
+            scraper: Фикстура парсера
+            session: Фикстура HTTP-сессии
+            not_found_url: URL, возвращающий 404 ошибку
+
+        Asserts:
+            - Вызывается исключение RequestException
+            - Сообщение об ошибке содержит информативный текст
+            - URL присутствует в сообщении об ошибке
+        """
         with pytest.raises(RequestException) as error:
             scraper._get_response_as_text(session, not_found_url)
 
@@ -29,6 +67,18 @@ class TestScraper:
     def test_get_correct_book_title(
         self, scraper: Scraper, main_soup: BeautifulSoup
     ):
+        """Тестирует извлечение корректного названия книги из HTML.
+
+        Проверяет работу метода _get_title с валидными данными.
+
+        Args:
+            scraper: Фикстура парсера
+            main_soup: Фикстура с корректно сформированным BeautifulSoup объектом
+
+        Asserts:
+            - Название является строкой
+            - Название соответствует ожидаемому значению
+        """
         title = scraper._get_title(main_soup)
 
         assert isinstance(title, str)
@@ -37,10 +87,23 @@ class TestScraper:
     def test_empty_book_title(
         self, scraper: Scraper, empty_title_main_soup: BeautifulSoup
     ):
+        """Тестирует обработку случая отсутствия названия книги.
+
+        Проверяет, что при невозможности извлечь название возвращается
+        значение по умолчанию.
+
+        Args:
+            scraper: Фикстура парсера
+            empty_title_main_soup: Фикстура с BeautifulSoup объектом без названия
+
+        Asserts:
+            - Возвращается значение EMPTY_DATA при отсутствии названия
+        """
         title = scraper._get_title(empty_title_main_soup)
 
         assert title == EMPTY_DATA, (
-            f"При отсутствии названия книги, по умолчанию должно быть значение '{EMPTY_DATA}'"
+            "При отсутствии названия книги, "
+            f"по умолчанию должно быть значение '{EMPTY_DATA}'"
         )
 
     def test_get_book_data_success(

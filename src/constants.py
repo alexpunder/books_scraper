@@ -1,5 +1,5 @@
 from pathlib import Path
-
+from typing import Any
 
 BASE_DIR = Path(__file__).parent.parent
 
@@ -29,3 +29,11 @@ RATING_MAP: dict[str, str] = {
 
 TASK_START_TIME: str = "19:00"
 DELAY: int = 10
+TIMEOUT: int | None = 30
+MAX_RETRIES: int | None = 3
+BACKOFF_FACTOR: float | None = 0.5
+RETRY_STATUSES: tuple[int] | None = (500, 502, 503, 504)
+DEFAULT_HEADERS: dict[str, Any] = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+}

@@ -1,9 +1,10 @@
-from bs4 import BeautifulSoup
 import pytest
+from bs4 import BeautifulSoup
 from requests import Session
 
+from src.adapters import HttpClientManager
+from src.config import ScraperConfig, SessionConfig
 from src.scraper import Scraper
-
 
 EXAMPLE_BOOK_PAGE: str = (
     "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"
@@ -14,13 +15,33 @@ TOTAL_BOOKS_PAGES: int = 3
 
 
 @pytest.fixture
-def scraper() -> Scraper:
-    return Scraper()
+def session_config() -> SessionConfig:
+    return SessionConfig()
+
+
+@pytest.fixture
+def http_manager(session_config: SessionConfig) -> HttpClientManager:
+    return HttpClientManager(session_config)
+
+
+@pytest.fixture
+def scraper_config() -> ScraperConfig:
+    return ScraperConfig()
+
+
+@pytest.fixture
+def scraper(
+    http_manager: HttpClientManager, scraper_config: ScraperConfig
+) -> Scraper:
+    return Scraper(
+        http_manager=http_manager,
+        scraper_config=scraper_config,
+    )
 
 
 @pytest.fixture
 def session(scraper: Scraper) -> Session:
-    return scraper.session
+    return scraper.http_manager.session
 
 
 @pytest.fixture
