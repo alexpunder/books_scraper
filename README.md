@@ -18,9 +18,9 @@ _**Парсер книжного сайта "books.toscrape.com"**_
 ![BeautifulSoup](https://img.shields.io/badge/Beautiful_Soup-4.12.3-orange?style=flat&logo=beautifulsoup)
 ![Schedule 1.2.2](https://img.shields.io/badge/Schedule-Task%20Scheduling-blue?style=flat&logo=clockify)
 
-Парсинг: Использует библиотеку `Requests` для HTTP-запросов + `BeautifulSoup` для работы с HTML
-Планирование: `Schedule` для настройки периодического выполнения
-Тестирование: `Pytest` для тестирования
+- Парсинг: Использует библиотеку `Requests` для HTTP-запросов + `BeautifulSoup` для работы с HTML
+- Планирование: `Schedule` для настройки периодического выполнения
+- Тестирование: `Pytest` для тестирования
 
 ## Установка проекта.  
 
@@ -69,8 +69,14 @@ python -m pip install --upgrade pip
 ]
 ```
 
+## Запуск проекта.  
+
+Для этого достаточно из корневой папки проекта `/books_scraper` в терминале выполнить команду `python3 src/scraper.py`. По умолчанию, скрипт запустится в указанное в переменной `TASK_START_TIME` время и будет сохранять обновленные данные в текстовый файл до тех пор, пока пользователь не прервет его выполнение комбинацией `Ctrl+C`.
+
 ## Тестирование.
 
 Из корневой директории проекта выполните команду `pytest`. Каждый тест должен завершиться статусом `PASSED`
+
+
 
 
